@@ -46,23 +46,3 @@ export const useGoogleOAuthFlow = () => {
 
   return startGoogleOAuth;
 };
-export const useAppleOAuthFlow = () => {
-  const { startOAuthFlow } = useOAuth({ strategy: "oauth_apple" });
-
-  const startAppleOAuth = async () => {
-    if (!startOAuthFlow) {
-      console.error("startOAuthFlow is undefined");
-      return null;
-    }
-
-    try {
-      const result = await startOAuthFlow();
-      return result;
-    } catch (err) {
-      console.error("OAuth error", err);
-      return null;
-    }
-  };
-
-  return startAppleOAuth;
-};

@@ -9,8 +9,15 @@ const SUPABASE_ANON_KEY = Constants.expoConfig?.extra?.supabaseAnonKey;
 export const supabaseClient = async (supabaseAccessToken: string) => {
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     global: { headers: { Authorization: `Bearer ${supabaseAccessToken}` } },
+    auth: {
+      persistSession: false,
+    },
   });
   return supabase;
 };
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    persistSession: false,
+  },
+});

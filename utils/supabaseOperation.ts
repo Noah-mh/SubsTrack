@@ -1,7 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system";
 import { supabase, supabaseClient } from "./supabaseClient";
-import { getSavedLogoURI } from "./localStorage";
 
 export const checkUserExists = async (userId: string, token: string) => {
   const supabase = await supabaseClient(token);
@@ -43,7 +42,7 @@ const fileExists = async (uri: string): Promise<boolean> => {
   }
 };
 export const downloadLogoUsingURL = async (): Promise<string | null> => {
-  let uri = await getSavedLogoURI();
+  let uri = await AsyncStorage.getItem("logoURI");
 
   if (uri && (await fileExists(uri))) {
     console.log("Using saved logo from:", uri);
@@ -77,4 +76,55 @@ export const downloadLogoUsingURL = async (): Promise<string | null> => {
     console.error("Download error:", e);
     return null;
   }
+};
+
+const fetchAllLogos = async (): Promise<string[] | null> => {
+  try {
+    const { data, error } = await supabase.storage.from("assets").list("logos/");
+    if (error || !data) {
+      console.error("Error fetching logo list:", error);
+      return null;
+    }
+    return data.map((entry) => entry.name);
+  } catch (err) {
+    console.error("Failed to fetch logo list:", err);
+    return null;
+  }
+};
+
+const downloadLogo = async (fileName: string): Promise<string> => {
+  const response: any = await supabase.storage.from("assets").getPublicUrl(`logos/${fileName}`);
+  if (response.error) {
+    throw new Error(`Error fetching Supabase URL for ${fileName}: ${response.error}`);
+  }
+
+  const fileUrl: string = response.data.publicUrl;
+  const localUri = FileSystem.documentDirectory + fileName;
+  await FileSystem.createDownloadResumable(fileUrl, localUri).downloadAsync();
+  console.log("Finished downloading to", localUri);
+  return localUri;
+};
+
+export const downloadAllLogos = async (): Promise<string[] | null> => {
+  const fileNames = await fetchAllLogos();
+  if (!fileNames) {
+    return null;
+  }
+
+  let savedUrisString = await AsyncStorage.getItem("logos");
+  let savedUris = savedUrisString ? JSON.parse(savedUrisString) : [];
+
+  for (let fileName of fileNames) {
+    const localUri = FileSystem.documentDirectory + fileName;
+
+    if (savedUris.includes(localUri) && (await FileSystem.getInfoAsync(localUri)).exists) {
+      continue; // Skip if the file already exists locally.
+    }
+
+    const downloadedUri = await downloadLogo(fileName);
+    savedUris.push(downloadedUri);
+  }
+
+  await AsyncStorage.setItem("logos", JSON.stringify(savedUris)); // Update the saved URIs in AsyncStorage.
+  return savedUris;
 };
